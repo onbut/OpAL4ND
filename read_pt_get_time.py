@@ -14,7 +14,6 @@ from sklearn.cluster import KMeans
 from json import dump
 from json import load as jsload
 
-
 def load_pt_file(file_path):
     data = torch.load(file_path)
     return data
@@ -165,74 +164,80 @@ def get_pr_score(file_path, data_json, data_cls_mean, data_json_cls_mean):
         pr_score[file]["pr_v2_score"] = pr_score[file]["uncer_score"] + 2 * pr_score[file]["cluster_score"]
     return pr_score
 
-def file_copy(file_path_top, dst_path, old_base_dir_path, dst_path_unlabeled, old_base_dir_path_unlabeled):
-    # 当文件夹不存在时，创建文件夹
-    if not os.path.exists(dst_path):
-        os.makedirs(dst_path)
-    if not os.path.exists(dst_path + "/rgb"):
-        os.makedirs(dst_path + "/rgb")
-    if not os.path.exists(dst_path + "/csv"):
-        os.makedirs(dst_path + "/csv")
-    if not os.path.exists(dst_path + "/json"):
-        os.makedirs(dst_path + "/json")
-    if not os.path.exists(dst_path_unlabeled):
-        os.makedirs(dst_path_unlabeled)
-    if not os.path.exists(dst_path_unlabeled + "/rgb"):
-        os.makedirs(dst_path_unlabeled + "/rgb")
-    if not os.path.exists(dst_path_unlabeled + "/csv"):
-        os.makedirs(dst_path_unlabeled + "/csv")
-    if not os.path.exists(dst_path_unlabeled + "/json"):
-        os.makedirs(dst_path_unlabeled + "/json")
-    # 显示文件夹路径
-    print("dst_path: ", dst_path)
-    print("dst_path_unlabeled: ", dst_path_unlabeled)
-    print("old_base_dir_path: ", old_base_dir_path)
-    print("old_base_dir_path_unlabeled: ", old_base_dir_path_unlabeled)
-    # 输出各个文件夹中的文件数量
-    print("dst_path: ", len(os.listdir(dst_path + "/rgb")))
-    print("dst_path_unlabeled: ", len(os.listdir(dst_path_unlabeled + "/rgb")))
-    print("old_base_dir_path: ", len(os.listdir(old_base_dir_path + "/rgb")))
-    print("old_base_dir_path_unlabeled: ", len(os.listdir(old_base_dir_path_unlabeled + "/rgb")))
+def get_pr_score_count_time_for_opu(file_path, data_json, data_cls_mean, data_json_cls_mean):
+    pr_score = {}
+    start_time = time.time()
+    for file in file_path:
+        pr_score[file] = {}
+        
+        pr_score_purity = []
 
-    # 将对应位置的图像复制到指定文件
-    for file_path in file_path_top:
-        shutil.copy(file_path, dst_path + "/rgb")
-    
-    # 遍历old_base_dir_path_unlabeled中的所有图像，当其完整路径不在file_path_top中时，将其复制到指定文件夹dst_path_unlabeled
-    for file_path in os.listdir(old_base_dir_path_unlabeled + "/rgb"):
-        if old_base_dir_path_unlabeled + "/rgb/" + file_path not in file_path_top:
-            shutil.copy(old_base_dir_path_unlabeled + "/rgb/" + file_path, dst_path_unlabeled + "/rgb")
-    
-    file_path_top_csv = file_path_top.copy()
-    # 将file_path_top_20中各项的"/rgb/"替换为"/csv"
-    for i in range(len(file_path_top)):
-        file_path_top_csv[i] = file_path_top_csv[i].replace("/rgb/", "/csv/")
-        file_path_top_csv[i] = file_path_top_csv[i].replace(".png", ".csv").replace('.jpg', '.csv')
+        for item in data_json_cls_mean:
+            if item["file_path"] == file:
+                pr_score_purity.append(purity_cal(item["input_features_save"], data_cls_mean))
+                pass
 
-    # 将对应位置的csv文件复制到指定文件夹
-    for file_path in file_path_top_csv:
-        shutil.copy(file_path, dst_path + "/csv")
-
-    # 遍历old_base_dir_path_unlabeled中的所有csv文件，当其完整路径不在file_path_top_csv中时，将其复制到指定文件夹dst_path_unlabeled
-    for file_path in os.listdir(old_base_dir_path_unlabeled + "/csv"):
-        if old_base_dir_path_unlabeled + "/csv/" + file_path not in file_path_top_csv:
-            shutil.copy(old_base_dir_path_unlabeled + "/csv/" + file_path, dst_path_unlabeled + "/csv")
+        pr_score[file]["putity_score"] = sum(pr_score_purity)
     
-    # 将old_base_dir_path中的rgb和csv文件追加到指定文件夹
-    for file_path in os.listdir(old_base_dir_path + "/rgb"):
-        shutil.copy(old_base_dir_path + "/rgb/" + file_path, dst_path + "/rgb")
-    for file_path in os.listdir(old_base_dir_path + "/csv"):
-        shutil.copy(old_base_dir_path + "/csv/" + file_path, dst_path + "/csv")
-    
-    # 输出各个文件夹中的文件数量
-    print("dst_path: ", len(os.listdir(dst_path + "/rgb")))
-    print("dst_path_unlabeled: ", len(os.listdir(dst_path_unlabeled + "/rgb")))
-    print("old_base_dir_path: ", len(os.listdir(old_base_dir_path + "/rgb")))
-    print("old_base_dir_path_unlabeled: ", len(os.listdir(old_base_dir_path_unlabeled + "/rgb")))
+    end_time = time.time()
+    print("time for opu: ", end_time - start_time)
 
     pass
 
+def get_pr_score_count_time_for_ucl(file_path, data_json, data_cls_mean, data_json_cls_mean):
+    pr_score = {}
+    start_time = time.time()
+    for file in file_path:
+        pr_score[file] = {}
+        
+        pr_score_uncertainty = []
+        
+        for item in data_json:
+            if item["file_path"] == file:
+                pr_score_uncertainty.append(uncertainty_cal(item["cls_sc_save"]))
+                pass
+        pr_score[file]["uncertainty_score"] = sum(pr_score_uncertainty) / len(pr_score_uncertainty)
+
+
+def get_pr_score_count_time_for_ours(file_path, data_json, data_cls_mean, data_json_cls_mean):
+    pr_score = {}
+    start_time = time.time()
+    for file in file_path:
+        pr_score[file] = {}
+        
+        pr_score_purity = []
+        pr_score_info_cls = []
+        pr_score_info_loc = []
+
+        for item in data_json_cls_mean:
+            if item["file_path"] == file:
+                pr_score_purity.append(purity_cal(item["input_features_save"], data_cls_mean))
+                pass
+        
+        for item in data_json:
+            if item["file_path"] == file:
+                pr_score_info_cls.append(info_cls_cal(item["cls_sc_save"]))
+                pr_score_info_loc.append(info_loc_cal(item["bbox"], item["proposal_bbox"]))
+                pass
+
+        pr_score[file]["putity_score"] = sum(pr_score_purity)
+        pr_score[file]["info_cls_score"] = sum(pr_score_info_cls) / len(pr_score_info_cls)
+        pr_score[file]["info_loc_score"] = sum(pr_score_info_loc) / len(pr_score_info_loc)
+
+        # uncer_score = pr_score[file]["info_cls_score"] * pr_score[file]["info_loc_score"]
+        pr_score[file]["uncer_score"] = pr_score[file]["info_cls_score"] * pr_score[file]["info_loc_score"]
+        # cluster_score
+        pr_score[file]["cluster_score"] = get_cluster_score(file, data_json)
+        # pr_v2_score
+        # pr_score[file]["pr_v2_score"] = pr_score[file]["uncer_score"] + pr_score[file]["cluster_score"]
+        pr_score[file]["pr_v2_score"] = pr_score[file]["uncer_score"] + 2 * pr_score[file]["cluster_score"]
+    
+    end_time = time.time()
+    print("time for ours: ", end_time - start_time)
+
+
 def nolmalization(pr_score, file_path, part_mark_copy):
+    start_time = time.time()
     # 所有图像的purity_score, info_cls_score, info_loc_score, uncertainty_score归一化
     purity_score = []
     info_cls_score = []
@@ -268,6 +273,9 @@ def nolmalization(pr_score, file_path, part_mark_copy):
         # elif part_mark_copy == "ran":
         #     # 随机生成一个0-1之间的数
         #     pr_score[file]["pr_score_final"] = torch.rand(1).item()
+    
+    end_time = time.time()
+    print("time for nolmalization: ", end_time - start_time)
     return pr_score
 
 
@@ -308,228 +316,6 @@ def top_50_info_file_path(pr_score, file_path):
     for i in info_score_top_50[1]:
         file_path_top_50.append(file_path[i])
     return file_path_top_50
-
-def csvs_to_coco_6(dor_path):
-    image_dir = os.path.join(dor_path, 'rgb')
-    csv_dir = os.path.join(dor_path, 'csv')
-    output_directory = os.path.join(dor_path, 'json')
-    images = []
-    annotations = []
-    
-    category_mapping = {'tumor': 0,
-                        'lymphoc': 1,
-                        'stromal': 2,
-                        'plasma_c': 3,
-                        'mitotic_f' : 4,
-                        # 'unknown': 3,
-    }
-    categories = [{'id': category_id, 'name': category_name} for category_name, category_id in category_mapping.items()]
-
-
-    for i, filename in enumerate(os.listdir(image_dir)):
-        if filename.endswith('.png') or filename.endswith('.jpg'):
-            image = Image.open(os.path.join(image_dir, filename))
-            width, height = image.size
-
-            images.append({
-                'id': i,
-                'width': width,
-                'height': height,
-                'file_name': filename
-            })
-
-        # 检查是否存在与图像同名的 CSV 文件
-        csv_filename = filename.replace('.png', '.csv').replace('.jpg', '.csv')
-        if csv_filename in os.listdir(csv_dir):
-            # 读取 CSV 文件
-            df = pd.read_csv(os.path.join(csv_dir, csv_filename))
-            # 去掉unknown
-            df = df[df['classes_2'] != 'unknown']
-
-            # 遍历 CSV 文件的每一行，添加标注信息
-            for _, row in df.iterrows():
-                annotations.append({
-                    'id': len(annotations) + 1,
-                    'image_id': i,
-                    'category_id': category_mapping[row['classes_2']],
-                    'bbox': [row['xmin'], row['ymin'], row['xmax'] - row['xmin'], row['ymax'] - row['ymin']],
-                    'area': (row['xmax'] - row['xmin']) * (row['ymax'] - row['ymin']),
-                    'iscrowd': 0
-                })
-
-    coco_dict = {
-        'images': images,
-        'annotations': annotations,
-        'categories': categories
-    }
-
-    with open(os.path.join(output_directory, 'coco_6.json'), 'w') as f:
-        dump(coco_dict, f)
-
-def csvs_to_coco_5(dor_path):
-    image_dir = os.path.join(dor_path, 'rgb')
-    csv_dir = os.path.join(dor_path, 'csv')
-    output_directory = os.path.join(dor_path, 'json')
-    images = []
-    annotations = []
-    
-    category_mapping = {'tumor': 0,
-                        'lymphoc': 1,
-                        'stromal': 2,
-                        'plasma_c': 3,
-                        # 'unknown': 3,
-    }
-    categories = [{'id': category_id, 'name': category_name} for category_name, category_id in category_mapping.items()]
-
-
-    for i, filename in enumerate(os.listdir(image_dir)):
-        if filename.endswith('.png') or filename.endswith('.jpg'):
-            image = Image.open(os.path.join(image_dir, filename))
-            width, height = image.size
-
-            images.append({
-                'id': i,
-                'width': width,
-                'height': height,
-                'file_name': filename
-            })
-
-        # 检查是否存在与图像同名的 CSV 文件
-        csv_filename = filename.replace('.png', '.csv').replace('.jpg', '.csv')
-        if csv_filename in os.listdir(csv_dir):
-            # 读取 CSV 文件
-            df = pd.read_csv(os.path.join(csv_dir, csv_filename))
-            # 去掉unknown
-            df = df[df['classes_3'] != 'unknown']
-
-            # 遍历 CSV 文件的每一行，添加标注信息
-            for _, row in df.iterrows():
-                annotations.append({
-                    'id': len(annotations) + 1,
-                    'image_id': i,
-                    'category_id': category_mapping[row['classes_3']],
-                    'bbox': [row['xmin'], row['ymin'], row['xmax'] - row['xmin'], row['ymax'] - row['ymin']],
-                    'area': (row['xmax'] - row['xmin']) * (row['ymax'] - row['ymin']),
-                    'iscrowd': 0
-                })
-
-    coco_dict = {
-        'images': images,
-        'annotations': annotations,
-        'categories': categories
-    }
-
-    with open(os.path.join(output_directory, 'coco_5.json'), 'w') as f:
-        dump(coco_dict, f)
-
-
-def csvs_to_coco_4(dor_path):
-    image_dir = os.path.join(dor_path, 'rgb')
-    csv_dir = os.path.join(dor_path, 'csv')
-    output_directory = os.path.join(dor_path, 'json')
-    images = []
-    annotations = []
-    
-    category_mapping = {'tumor': 0,
-                        'lymphoc': 1,
-                        'stromal': 2,
-                        # 'unknown': 3,
-    }
-    categories = [{'id': category_id, 'name': category_name} for category_name, category_id in category_mapping.items()]
-
-
-    for i, filename in enumerate(os.listdir(image_dir)):
-        if filename.endswith('.png') or filename.endswith('.jpg'):
-            image = Image.open(os.path.join(image_dir, filename))
-            width, height = image.size
-
-            images.append({
-                'id': i,
-                'width': width,
-                'height': height,
-                'file_name': filename
-            })
-
-        # 检查是否存在与图像同名的 CSV 文件
-        csv_filename = filename.replace('.png', '.csv').replace('.jpg', '.csv')
-        if csv_filename in os.listdir(csv_dir):
-            # 读取 CSV 文件
-            df = pd.read_csv(os.path.join(csv_dir, csv_filename))
-            # 去掉unknown
-            df = df[df['classes_4'] != 'unknown']
-
-            # 遍历 CSV 文件的每一行，添加标注信息
-            for _, row in df.iterrows():
-                annotations.append({
-                    'id': len(annotations) + 1,
-                    'image_id': i,
-                    'category_id': category_mapping[row['classes_4']],
-                    'bbox': [row['xmin'], row['ymin'], row['xmax'] - row['xmin'], row['ymax'] - row['ymin']],
-                    'area': (row['xmax'] - row['xmin']) * (row['ymax'] - row['ymin']),
-                    'iscrowd': 0
-                })
-
-    coco_dict = {
-        'images': images,
-        'annotations': annotations,
-        'categories': categories
-    }
-
-    with open(os.path.join(output_directory, 'coco_4.json'), 'w') as f:
-        dump(coco_dict, f)
-
-
-def csvs_to_coco_01(dor_path):
-    image_dir = os.path.join(dor_path, 'rgb')
-    csv_dir = os.path.join(dor_path, 'csv')
-    output_directory = os.path.join(dor_path, 'json')
-    images = []
-    annotations = []
-    
-    category_mapping = {'knk': 0,
-                        'knu': 1,
-    }
-    categories = [{'id': category_id, 'name': category_name} for category_name, category_id in category_mapping.items()]
-
-
-    for i, filename in enumerate(os.listdir(image_dir)):
-        if filename.endswith('.png') or filename.endswith('.jpg'):
-            image = Image.open(os.path.join(image_dir, filename))
-            width, height = image.size
-
-            images.append({
-                'id': i,
-                'width': width,
-                'height': height,
-                'file_name': filename
-            })
-
-        # 检查是否存在与图像同名的 CSV 文件
-        csv_filename = filename.replace('.png', '.csv').replace('.jpg', '.csv')
-        if csv_filename in os.listdir(csv_dir):
-            # 读取 CSV 文件
-            df = pd.read_csv(os.path.join(csv_dir, csv_filename))
-
-            # 遍历 CSV 文件的每一行，添加标注信息
-            for _, row in df.iterrows():
-                annotations.append({
-                    'id': len(annotations) + 1,
-                    'image_id': i,
-                    'category_id': category_mapping[row['classes_01']],
-                    'bbox': [row['xmin'], row['ymin'], row['xmax'] - row['xmin'], row['ymax'] - row['ymin']],
-                    'area': (row['xmax'] - row['xmin']) * (row['ymax'] - row['ymin']),
-                    'iscrowd': 0
-                })
-
-    coco_dict = {
-        'images': images,
-        'annotations': annotations,
-        'categories': categories
-    }
-
-    with open(os.path.join(output_directory, 'coco_01.json'), 'w') as f:
-        dump(coco_dict, f)
-
 
 def main():
     # 读取命令行参数
@@ -784,6 +570,11 @@ def main():
     # 计算pr_score
     pr_score = get_pr_score(file_path, data_json, data_cls_mean, data_json_cls_mean)
 
+    # 计算opu_time
+    opu_time = get_pr_score_count_time_for_opu(file_path, data_json, data_cls_mean, data_json_cls_mean)
+    opu_time = get_pr_score_count_time_for_ucl(file_path, data_json, data_cls_mean, data_json_cls_mean)
+    opu_time = get_pr_score_count_time_for_ours(file_path, data_json, data_cls_mean, data_json_cls_mean)
+
     # 归一化
     pr_score = nolmalization(pr_score, file_path, part_mark_copy)
 
@@ -869,36 +660,7 @@ def main():
         print("part_mark error!")
 
 
-    # 将对应位置的图像复制到指定文件夹
-    file_copy(file_path_top_50, new_rgb_csv_path, old_base_dir_path, new_rgb_csv_path_unlabeled, old_base_dir_path_unlabeled)
-
-    # 创建coco格式的json文件
-    if label_U_copy == "U2":
-        csvs_to_coco_6(new_rgb_csv_path)
-        csvs_to_coco_6(new_rgb_csv_path_unlabeled)
-    elif label_U_copy == "U3":
-        csvs_to_coco_5(new_rgb_csv_path)
-        csvs_to_coco_5(new_rgb_csv_path_unlabeled)
-    elif label_U_copy == "U4":
-        csvs_to_coco_4(new_rgb_csv_path)
-        csvs_to_coco_4(new_rgb_csv_path_unlabeled)
-        
-    if part_mark_copy == "all_three":
-        csvs_to_coco_01(new_rgb_csv_path)
-        csvs_to_coco_01(new_rgb_csv_path_unlabeled)
-    elif part_mark_copy == "opu":
-        csvs_to_coco_01(new_rgb_csv_path)
-        csvs_to_coco_01(new_rgb_csv_path_unlabeled)
-    elif part_mark_copy == "no_ic":
-        csvs_to_coco_01(new_rgb_csv_path)
-        csvs_to_coco_01(new_rgb_csv_path_unlabeled)
-    elif part_mark_copy == "no_il":
-        csvs_to_coco_01(new_rgb_csv_path)
-        csvs_to_coco_01(new_rgb_csv_path_unlabeled)
-    elif part_mark_copy == "ucl":
-        csvs_to_coco_01(new_rgb_csv_path)
-        csvs_to_coco_01(new_rgb_csv_path_unlabeled)
-    pass
+    
 
 if __name__ == "__main__":
     # 尝试运行main函数，如果失败，则一分钟后运行main函数
