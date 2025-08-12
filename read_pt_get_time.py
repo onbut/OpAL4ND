@@ -179,6 +179,15 @@ def get_pr_score_count_time_for_opu(file_path, data_json, data_cls_mean, data_js
 
         pr_score[file]["putity_score"] = sum(pr_score_purity)
     
+    purity_score = []
+    for file in file_path:
+        purity_score.append(pr_score[file]["putity_score"])
+        
+    purity_score = torch.tensor(purity_score)
+    purity_score = (purity_score - torch.min(purity_score)) / (torch.max(purity_score) - torch.min(purity_score))
+    for file in file_path:
+        pr_score[file]["putity_score"] = purity_score[file_path.index(file)].item()
+    
     end_time = time.time()
     print("time for opu: ", end_time - start_time)
 
@@ -189,14 +198,40 @@ def get_pr_score_count_time_for_ucl(file_path, data_json, data_cls_mean, data_js
     start_time = time.time()
     for file in file_path:
         pr_score[file] = {}
-        
+
+        pr_score_info_loc = []
         pr_score_uncertainty = []
+
         
         for item in data_json:
             if item["file_path"] == file:
+                pr_score_info_loc.append(info_loc_cal(item["bbox"], item["proposal_bbox"]))
                 pr_score_uncertainty.append(uncertainty_cal(item["cls_sc_save"]))
                 pass
+
+        pr_score[file]["info_loc_score"] = sum(pr_score_info_loc) / len(pr_score_info_loc)
         pr_score[file]["uncertainty_score"] = sum(pr_score_uncertainty) / len(pr_score_uncertainty)
+
+    
+
+    info_loc_score = []
+    uncertainty_score = []
+    for file in file_path:
+        info_loc_score.append(pr_score[file]["info_loc_score"])
+        uncertainty_score.append(pr_score[file]["uncertainty_score"])
+    info_loc_score = torch.tensor(info_loc_score)
+    uncertainty_score = torch.tensor(uncertainty_score)
+    info_loc_score = (info_loc_score - torch.min(info_loc_score)) / (torch.max(info_loc_score) - torch.min(info_loc_score))
+    uncertainty_score = (uncertainty_score - torch.min(uncertainty_score)) / (torch.max(uncertainty_score) - torch.min(uncertainty_score))
+    for file in file_path:
+        pr_score[file]["info_loc_score"] = info_loc_score[file_path.index(file)].item()
+        pr_score[file]["uncertainty_score_for_info"] = uncertainty_score[file_path.index(file)].item()
+        pr_score[file]["info_uncertainty_loc_score"] = pr_score[file]["info_loc_score"] * pr_score[file]["uncertainty_score_for_info"]
+
+    
+    end_time = time.time()
+    print("time for ucl: ", end_time - start_time)
+    pass
 
 
 def get_pr_score_count_time_for_ours(file_path, data_json, data_cls_mean, data_json_cls_mean):
@@ -231,7 +266,6 @@ def get_pr_score_count_time_for_ours(file_path, data_json, data_cls_mean, data_j
         # pr_v2_score
         # pr_score[file]["pr_v2_score"] = pr_score[file]["uncer_score"] + pr_score[file]["cluster_score"]
         pr_score[file]["pr_v2_score"] = pr_score[file]["uncer_score"] + 2 * pr_score[file]["cluster_score"]
-    
     end_time = time.time()
     print("time for ours: ", end_time - start_time)
 
@@ -331,12 +365,12 @@ def main():
     datafile_label_mark_copy = arg.datafile_label_mark
     label_U_copy = arg.label_U
 
-    cls_mean_file_path = "./output_double/U2/U2_all_three/U2_01/clabe_138_80/ab_save/cls_mean/12000.pt"
-    data_json_file_path = "./output_double/U2/U2_all_three/U2_6/evalu_200_with_138_model/inference/coco_instances_results.json"
-    old_base_dir_path = "../data_double/U2/data_all_three/coco_labeled_138"
-    old_base_dir_path_unlabeled = "../data_double/U2/data_all_three/coco_unlabeled_200"
-    new_rgb_csv_path = "../data_double/U2/data_all_three/coco_labeled_158"
-    new_rgb_csv_path_unlabeled = "../data_double/U2/data_all_three/coco_unlabeled_180"
+    cls_mean_file_path = "./Output_Double_others/output_double_lizard_v3/U2/U2_all_three/U2_01/clabe_138_80/ab_save/cls_mean/12000.pt"
+    data_json_file_path = "./Output_Double_others/output_double_lizard_v3/U2/U2_all_three/U2_6/evalu_200_with_138_model/inference/coco_instances_results.json"
+    old_base_dir_path = "../Data_Double_others/data_double_lizard_v3/U2/data_all_three/coco_labeled_138"
+    old_base_dir_path_unlabeled = "../Data_Double_others/data_double_lizard_v3/U2/data_all_three/coco_unlabeled_200"
+    new_rgb_csv_path = "../Data_Double_others/data_double_lizard_v3/U2/data_all_three/coco_labeled_158"
+    new_rgb_csv_path_unlabeled = "../Data_Double_others/data_double_lizard_v3/U2/data_all_three/coco_unlabeled_180"
 
     if part_mark_copy == "all_three":
         # 不做任何处理
